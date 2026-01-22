@@ -12,27 +12,7 @@ $containerName = "comprimidos";
 
 $blobClient = BlobRestProxy::createBlobService($connectionString);
 
-// Descargar archivo si se solicita
-// if (isset($_GET['download_blob'])) {
-//     $blobName = $_GET['download_blob'];
-//     try {
-//         $blob = $blobClient->getBlob($containerName, $blobName);
-//         $content = stream_get_contents($blob->getContentStream());
-
-//         header('Content-Type: application/zip');
-//         header('Content-Disposition: attachment; filename="' . basename($blobName) . '"');
-//         header('Content-Length: ' . strlen($content));
-
-//         echo $content;
-//         exit;
-//     } catch (Exception $e) {
-//         http_response_code(500);
-//         echo "Error al descargar el archivo: " . $e->getMessage();
-//         exit;
-//     }
-// }
-
-// Eliminar archivo si se envió solicitud
+// Eliminar archivo
 if (isset($_GET['delete'])) {
     $blobToDelete = $_GET['delete'];
     try {
@@ -43,14 +23,18 @@ if (isset($_GET['delete'])) {
     }
 }
 
-// Subir archivo nuevo
+// Subir archivo ZIP
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['zipfile'])) {
     $uploadedFile = $_FILES['zipfile'];
-    if ($uploadedFile['type'] !== 'application/zip') {
+
+    $extension = strtolower(pathinfo($uploadedFile['name'], PATHINFO_EXTENSION));
+
+    if ($extension !== 'zip') {
         echo "<p style='color:red;'>Solo se permiten archivos ZIP</p>";
     } else {
         $blobName = basename($uploadedFile['name']);
         $content = fopen($uploadedFile['tmp_name'], 'r');
+
         try {
             $blobClient->createBlockBlob($containerName, $blobName, $content);
             echo "<p style='color:green;'>Archivo $blobName subido correctamente</p>";
@@ -68,16 +52,14 @@ try {
 } catch (ServiceException $e) {
     die("Error al listar blobs: " . $e->getMessage());
 }
-?>
 
+?>
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
     <meta charset="UTF-8">
     <title>Gestor de archivos ZIP en Azure Blob</title>
 </head>
-
 <body>
     <h1>Archivos ZIP en '<?= htmlspecialchars($containerName) ?>'</h1>
 
@@ -87,7 +69,7 @@ try {
                 <a href="<?= htmlspecialchars($blob->getUrl()) ?>" target="_blank">
                     <?= htmlspecialchars($blob->getName()) ?>
                 </a>
-                [<a href="?delete=<?= urlencode($blob->getName()) ?>)"
+                [<a href="?delete=<?= urlencode($blob->getName()) ?>"
                     onclick="return confirm('Eliminar este archivo?')">Eliminar</a>]
             </li>
         <?php endforeach; ?>
@@ -99,5 +81,4 @@ try {
         <button type="submit">Subir</button>
     </form>
 </body>
-
 </html>
